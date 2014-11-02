@@ -8,13 +8,9 @@ import java.util.UUID;
 import android.bluetooth.*;
 import android.os.SystemClock;
 
-public class BluetoothSyncServer implements Runnable {
-	
-	public static final String serviceName = "Bluetooth Stereo Recorder Server";
-	public static final UUID uuid = UUID.fromString(serviceName);
-		
+public class BluetoothSyncServer extends BluetoothSync implements Runnable {
+			
 	public BluetoothSyncServer() throws IOException {
-		_bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 		_bluetoothServerSocket = _bluetoothAdapter.listenUsingRfcommWithServiceRecord(serviceName, uuid);
 	}
 	
@@ -42,20 +38,5 @@ public class BluetoothSyncServer implements Runnable {
 		}
 	}
 	
-	private long getTransmissionDelay() throws IOException {
-		long clientTime = _dataInputStream.readLong();
-		long sendTime = SystemClock.elapsedRealtime();
-		_dataOutputStream.writeLong(sendTime);
-		_dataInputStream.read();
-		long rcvTime = SystemClock.elapsedRealtime();
-		long delay = (rcvTime - sendTime) / 2;
-		return delay;
-	}
-	
-	private BluetoothAdapter _bluetoothAdapter;
 	private BluetoothServerSocket _bluetoothServerSocket;
-	private BluetoothSocket _bluetoothSocket;
-	private DataInputStream _dataInputStream;
-	private DataOutputStream _dataOutputStream;
-	private long _transmissionDelay;
 }

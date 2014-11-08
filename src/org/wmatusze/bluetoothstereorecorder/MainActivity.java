@@ -1,33 +1,48 @@
 package org.wmatusze.bluetoothstereorecorder;
 
+import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadListener;
+
 import android.support.v7.app.ActionBarActivity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MenuItem.OnMenuItemClickListener;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements BluetoothThreadListener {
 	public static final int REQUEST_ENABLE_BT = 1;
+	private static final String TAG = "MainActivity";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-				
-		if(!deviceIsBluetoothCapable()) {
-			//TODO: exit
+		
+		_bluetoothThread = new BluetoothThread(this);
+
+		if(!_bluetoothThread.deviceIsBluetoothCapable()) {
+			Log.e(TAG, "Device is not bluetooth enabled");
 		}
 		
-		turnOnBluetooth();
-		makeBluetoothDiscoverable();
-		
+		_bluetoothThread.start();
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.main, menu);
+		
+		menu.add("Listen").setOnMenuItemClickListener(new OnMenuItemClickListener() {
+			
+			@Override
+			public boolean onMenuItemClick(MenuItem item) {
+				_bluetoothThread.listen();
+				return false;
+			}
+		});
 		return true;
 	}
 
@@ -57,23 +72,32 @@ public class MainActivity extends ActionBarActivity {
 		}
 	}
 	
-	private boolean deviceIsBluetoothCapable() {
-		BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		return bluetoothAdapter != null;
-	}
-	
-	private void turnOnBluetooth() {
-		BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+	@Override
+	public void receiveBluetoothMessage(long msg) {
+		// TODO Auto-generated method stub
 		
-		if (!bluetoothAdapter.isEnabled()) {
+	}
+
+	@Override
+	public BluetoothDevice selectBluetoothDevice(BluetoothAdapter adapter) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void enableBluetooth(BluetoothAdapter adapter) {
+		if (!adapter.isEnabled()) {
 		    Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 		    startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
 		}
 	}
-	
-	private void makeBluetoothDiscoverable() {
+
+	@Override
+	public void enableDiscoverability() {
 		Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
 		discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
-		startActivity(discoverableIntent);
+		startActivity(discoverableIntent);		
 	}
+	
+	private BluetoothThread _bluetoothThread;
 }

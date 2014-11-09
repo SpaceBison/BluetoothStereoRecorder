@@ -1,5 +1,7 @@
 package org.wmatusze.bluetoothstereorecorder;
 
+import java.util.Map;
+
 import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadListener;
 
 import android.support.v7.app.ActionBarActivity;
@@ -15,6 +17,25 @@ import android.view.MenuItem.OnMenuItemClickListener;
 public class MainActivity extends ActionBarActivity implements BluetoothThreadListener {
 	public static final int REQUEST_ENABLE_BT = 1;
 	private static final String TAG = "MainActivity";
+	private static final String listenItemTitle = "Listen";
+	private static final String connectItemTitle = "Connect";
+	private static final String recordItemTitle = "Record";
+	
+	private class MainActivityOnMenuItemClickListener implements OnMenuItemClickListener {
+		@Override
+		public boolean onMenuItemClick(MenuItem item) {
+			if(item.getTitle().equals(listenItemTitle)) {
+				_bluetoothThread.listen();
+				return true;
+			} else if(item.getTitle().equals(connectItemTitle)) {
+				_bluetoothThread.connect();
+				return true;
+			} else if(item.getTitle().equals(recordItemTitle)) {
+				Log.i(TAG, "AudioCaptureThread not yet implemented");
+			}
+			return false;
+		}
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +49,8 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 		}
 		
 		_bluetoothThread.start();
+		
+		_onMenuItemClickListener = new MainActivityOnMenuItemClickListener();
 	}
 
 	@Override
@@ -35,14 +58,9 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.main, menu);
 		
-		menu.add("Listen").setOnMenuItemClickListener(new OnMenuItemClickListener() {
-			
-			@Override
-			public boolean onMenuItemClick(MenuItem item) {
-				_bluetoothThread.listen();
-				return false;
-			}
-		});
+		menu.add(listenItemTitle).setOnMenuItemClickListener(_onMenuItemClickListener);
+		menu.add(connectItemTitle).setOnMenuItemClickListener(_onMenuItemClickListener);
+		menu.add(recordItemTitle).setOnMenuItemClickListener(_onMenuItemClickListener);
 		return true;
 	}
 
@@ -100,4 +118,5 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 	}
 	
 	private BluetoothThread _bluetoothThread;
+	private OnMenuItemClickListener _onMenuItemClickListener;
 }

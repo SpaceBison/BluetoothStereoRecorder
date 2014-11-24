@@ -13,6 +13,9 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MenuItem.OnMenuItemClickListener;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 
 public class MainActivity extends ActionBarActivity implements BluetoothThreadListener {
 	public static final int REQUEST_ENABLE_BT = 1;
@@ -21,7 +24,7 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 	private static final String connectItemTitle = "Connect";
 	private static final String recordItemTitle = "Record";
 	
-	private class MainActivityOnMenuItemClickListener implements OnMenuItemClickListener {
+	private class MainActivityClickListener implements OnMenuItemClickListener, OnClickListener {
 		@Override
 		public boolean onMenuItemClick(MenuItem item) {
 			if(item.getTitle().equals(listenItemTitle)) {
@@ -34,6 +37,13 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 				Log.i(TAG, "AudioCaptureThread not yet implemented");
 			}
 			return false;
+		}
+
+		@Override
+		public void onClick(View v) {
+			if(v == _connectButton) {
+				_bluetoothThread.connect();
+			}
 		}
 	}
 
@@ -50,7 +60,9 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 		
 		_bluetoothThread.start();
 		
-		_onMenuItemClickListener = new MainActivityOnMenuItemClickListener();
+		_onMenuItemClickListener = new MainActivityClickListener();
+		
+		_connectButton = (Button) findViewById(R.id.connectButton);
 	}
 
 	@Override
@@ -119,4 +131,5 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 	
 	private BluetoothThread _bluetoothThread;
 	private OnMenuItemClickListener _onMenuItemClickListener;
+	private Button _connectButton;
 }

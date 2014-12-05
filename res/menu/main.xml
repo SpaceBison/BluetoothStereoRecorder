@@ -8,5 +8,6 @@
         android:orderInCategory="100"
         android:title="@string/action_settings"
         app:showAsAction="never"/>
+    <item android:id="@+id/action_connect" android:title="@string/connect" android:onClick="onConnectMenuItemClick"></item>
 
 </menu>

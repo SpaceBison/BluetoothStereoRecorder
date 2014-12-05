@@ -1,10 +1,11 @@
 package org.wmatusze.bluetoothstereorecorder;
 
-import java.util.Map;
-
 import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadListener;
 
 import android.support.v7.app.ActionBarActivity;
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
@@ -12,41 +13,27 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MenuItem.OnMenuItemClickListener;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.Button;
 
 public class MainActivity extends ActionBarActivity implements BluetoothThreadListener {
 	public static final int REQUEST_ENABLE_BT = 1;
 	private static final String TAG = "MainActivity";
-	private static final String listenItemTitle = "Listen";
-	private static final String connectItemTitle = "Connect";
-	private static final String recordItemTitle = "Record";
 	
-	private class MainActivityClickListener implements OnMenuItemClickListener, OnClickListener {
-		@Override
-		public boolean onMenuItemClick(MenuItem item) {
-			if(item.getTitle().equals(listenItemTitle)) {
-				_bluetoothThread.listen();
-				return true;
-			} else if(item.getTitle().equals(connectItemTitle)) {
-				_bluetoothThread.connect();
-				return true;
-			} else if(item.getTitle().equals(recordItemTitle)) {
-				Log.i(TAG, "AudioCaptureThread not yet implemented");
-			}
-			return false;
-		}
-
-		@Override
-		public void onClick(View v) {
-			if(v == _connectButton) {
-				_bluetoothThread.connect();
-			}
-		}
+	public boolean onConnectMenuItemClick(MenuItem item) {
+		connect(null);
+		return true;
 	}
-
+	
+	public void connect(View view) {
+		Log.d(TAG, "Trying to connect");
+		//TODO: prawdziwy dialog
+		AlertDialog.Builder _builder = new AlertDialog.Builder(this);
+		_builder.setTitle("Select device");
+		_builder.setMessage("Nic tu nie ma :(((");
+		_builder.create().show();
+	}
+	
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -59,20 +46,12 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 		}
 		
 		_bluetoothThread.start();
-		
-		_onMenuItemClickListener = new MainActivityClickListener();
-		
-		_connectButton = (Button) findViewById(R.id.connectButton);
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.main, menu);
-		
-		menu.add(listenItemTitle).setOnMenuItemClickListener(_onMenuItemClickListener);
-		menu.add(connectItemTitle).setOnMenuItemClickListener(_onMenuItemClickListener);
-		menu.add(recordItemTitle).setOnMenuItemClickListener(_onMenuItemClickListener);
 		return true;
 	}
 
@@ -109,12 +88,6 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 	}
 
 	@Override
-	public BluetoothDevice selectBluetoothDevice(BluetoothAdapter adapter) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public void enableBluetooth(BluetoothAdapter adapter) {
 		if (!adapter.isEnabled()) {
 		    Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -130,6 +103,4 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 	}
 	
 	private BluetoothThread _bluetoothThread;
-	private OnMenuItemClickListener _onMenuItemClickListener;
-	private Button _connectButton;
 }

@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -22,7 +23,6 @@ public class BluetoothThread extends Thread {
 
 	public interface BluetoothThreadListener {
 		void receiveBluetoothMessage(long msg);
-		BluetoothDevice selectBluetoothDevice(BluetoothAdapter adapter);
 		void enableBluetooth(BluetoothAdapter adapter);
 		void enableDiscoverability();
 	}
@@ -52,8 +52,8 @@ public class BluetoothThread extends Thread {
 		_handler.sendMessage(Message.obtain(_handler, MESSAGE_LISTEN));
 	}
 	
-	public void connect() {
-		_handler.sendMessage(Message.obtain(_handler, MESSAGE_CONNECT));
+	public void connectToBluetoothDevice(BluetoothDevice bluetoothDevice) {
+		_handler.sendMessage(Message.obtain(_handler, MESSAGE_CONNECT, bluetoothDevice));
 	}
 	
 	public void send(long data) {
@@ -73,8 +73,7 @@ public class BluetoothThread extends Thread {
 		_dataOutputStream = new DataOutputStream(_bluetoothSocket.getOutputStream());
 	}
 
-	private void _connect() throws IOException {
-		BluetoothDevice bluetoothDevice = _listener.selectBluetoothDevice(_bluetoothAdapter);
+	private void _connect(BluetoothDevice bluetoothDevice) throws IOException {
 		_bluetoothSocket = bluetoothDevice.createRfcommSocketToServiceRecord(uuid);
 		_bluetoothAdapter.cancelDiscovery();
 		_bluetoothSocket.connect();
@@ -102,7 +101,7 @@ public class BluetoothThread extends Thread {
 					_bluetoothThread._listen();
 					break;
 				case MESSAGE_CONNECT:
-					_bluetoothThread._connect();
+					_bluetoothThread._connect((BluetoothDevice)msg.obj);
 					break;
 				case MESSAGE_SEND:
 					_bluetoothThread._send(msg.arg1, msg.arg2);

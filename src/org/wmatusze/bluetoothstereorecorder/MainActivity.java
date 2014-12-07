@@ -2,49 +2,213 @@ package org.wmatusze.bluetoothstereorecorder;
 
 import java.util.List;
 
+import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadActivity;
 import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadListener;
 
-import android.support.v4.app.FragmentManager;
 import android.support.v7.app.ActionBarActivity;
 import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
 import android.app.Dialog;
+import android.app.AlertDialog.Builder;
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.nfc.NfcAdapter.CreateBeamUrisCallback;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.Button;
-import android.widget.ListAdapter;
+import android.widget.ProgressBar;
 
-public class MainActivity extends ActionBarActivity implements BluetoothThreadListener {
+public class MainActivity extends ActionBarActivity implements BluetoothThreadActivity {
+	private class BluetoothDeviceSelectAlertDialogBuilder extends Builder {
+		private class BluetoothDeviceSelectAlertDialogExtraDeviceBroadcastReceiver extends BroadcastReceiver {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+	            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+	            BluetoothDeviceListItem item = new BluetoothDeviceListItem(device);
+	            
+	            if(!_pairedDeviceList.contains(item)) {
+	            	Log.i(TAG, "Adding device " + device.getAddress() + " to list");
+	            	_pairedDeviceList.add(item);
+	            }
+	            
+	            _adapter.notifyDataSetChanged();
+			}
+		}
+		
+		private class BluetoothDeviceSelectAlertDialogListener implements OnClickListener, OnCancelListener {
+			@Override
+			public void onCancel(DialogInterface dialog) {
+				unregisterReceiver(_broadcastReceiver);
+				disableConnectOption();
+			}
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				AlertDialog alertDialog = (AlertDialog)dialog;
+				BluetoothDeviceListItem item = (BluetoothDeviceListItem)alertDialog.getListView().getAdapter().getItem(which);
+				unregisterReceiver(_broadcastReceiver);
+				disableConnectOption();
+				_bluetoothThread.connectToBluetoothDevice(item.device);
+			}
+		}
+		
+		private static final String TAG = "BluetoothDeviceSelectAlertDialogBuilder";
+		
+		private BaseAdapter _adapter;
+		
+		private BroadcastReceiver _broadcastReceiver;
+		
+		private List<BluetoothDeviceListItem> _pairedDeviceList;
+		public BluetoothDeviceSelectAlertDialogBuilder(Context context) {
+			super(context);
+			_context = context;
+		}
+		
+		@Override
+		public AlertDialog create() {
+			Log.d(TAG, "Creating builder");
+			_pairedDeviceList = _bluetoothThread.getPairedDeviceList();
+			_adapter = new ArrayAdapter<BluetoothDeviceListItem>(_context, R.layout.simple_text_view, _pairedDeviceList);
+			_broadcastReceiver = new BluetoothDeviceSelectAlertDialogExtraDeviceBroadcastReceiver();
+			
+			setTitle("Select Device");
+			setAdapter(_adapter, (OnClickListener) new BluetoothDeviceSelectAlertDialogListener());
+			
+			IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+			registerReceiver(_broadcastReceiver, filter);
+			
+			_bluetoothThread.startDeviceScan();
+			
+			return super.create();
+		}
+		
+		@Override
+		public AlertDialog show() {
+			disableConnectOption();
+			return super.show();
+		}
+		
+		private Context _context;
+	}
+	
 	public static final int REQUEST_ENABLE_BT = 1;
+	
 	private static final String TAG = "MainActivity";
+	
+	
+	private BluetoothThread _bluetoothThread;
+
+	private Button _connectButton;
+	
+	private boolean _connecting = false;
+
+	private MenuItem _connectMenuItem;
+	
+	private void disableConnectOption() {
+		_connecting = true;
+		_connectButton.setText("Connecting...");
+		_connectButton.setEnabled(false);
+	}
+	
+	@Override
+	public void enableBluetooth(BluetoothAdapter adapter) {
+		if (!adapter.isEnabled()) {
+		    Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+		    startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+		}
+	}
+
+	private void enableConnectOption() {
+		_connecting = false;
+		_connectButton.setText("Connect");
+		_connectButton.setEnabled(true);
+	}
+
+	@Override
+	public void enableDiscoverability() {
+		Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+		discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+		startActivity(discoverableIntent);		
+	}
+	
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+		switch (requestCode) {
+		case REQUEST_ENABLE_BT:
+			if(resultCode == RESULT_CANCELED) {
+				//TODO display dialog
+			}
+		break;
+
+		default:
+			break;
+		}
+	}
 	
 	public void onConnectClick(View view) {
 		Log.d(TAG, "Connect option clicked");
-		disableConnectOption();
-		createBluetoothDeviceSelectDialog().show();
+		
+		AlertDialog.Builder builder = new BluetoothDeviceSelectAlertDialogBuilder(this);
+		builder.create().show();
 	}
 	
+	public void onListenClick(View view) {
+		Log.d(TAG, "Listen option clicked");
+		
+		ProgressDialog dialog = new ProgressDialog(this);
+		dialog.setMessage("Waiting for connection");
+        dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+		dialog.setCancelable(true);
+		dialog.setOnCancelListener(new OnCancelListener() {
+			@Override
+			public void onCancel(DialogInterface dialog) {
+				// TODO stop discovery
+			}
+		});
+		dialog.show();
+		_bluetoothThread.listen();
+	}
 	
+	@Override
+	public void onConnectionFailed(String deviceAdress) {		
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		
+		builder.setTitle("Error");
+		builder.setMessage("Cannot connect to device " + deviceAdress);
+		builder.setPositiveButton("OK", new OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				enableConnectOption();
+			}
+		});
+		
+		builder.create().show();
+	}
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		
-		_bluetoothThread = new BluetoothThread(this);
+		_bluetoothThread = new BluetoothThread();
 
 		if(!_bluetoothThread.deviceIsBluetoothCapable()) {
 			Log.e(TAG, "Device is not bluetooth enabled");
 		}
 		
+		_bluetoothThread.setActivity(this);		
 		_bluetoothThread.start();
 		
 		_connectButton = (Button)findViewById(R.id.connectButton);
@@ -58,13 +222,6 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 		return true;
 	}
 	
-	@Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        super.onPrepareOptionsMenu(menu);
-        _connectMenuItem.setVisible(!_connecting);
-        return true;
-    }
-
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		// Handle action bar item clicks here. The action bar will
@@ -82,97 +239,25 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadLi
 	}
 	
 	@Override
-	public void onActivityResult(int requestCode, int resultCode, Intent data) {
-		switch (requestCode) {
-		case REQUEST_ENABLE_BT:
-			if(resultCode == RESULT_CANCELED) {
-				//TODO display dialog
-			}
-		break;
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        _connectMenuItem.setVisible(!_connecting);
+        return true;
+    }
 
-		default:
-			break;
-		}
-	}
-	
 	@Override
-	public void receiveBluetoothMessage(long msg) {
-		// TODO Auto-generated method stub
-		
+	public void onConnected() {
+		Intent intent = new Intent(this, AudioCaptureActivity.class);
+		intent.putExtra(AudioCaptureActivity.EXTRA_BLUETOOTH_THREAD, _bluetoothThread);
+		intent.putExtra(AudioCaptureActivity.EXTRA_SEND_SYNC_REQUEST, true);
+		startService(intent);
 	}
 
 	@Override
-	public void enableBluetooth(BluetoothAdapter adapter) {
-		if (!adapter.isEnabled()) {
-		    Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-		    startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-		}
-	}
-
-	@Override
-	public void enableDiscoverability() {
-		Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-		discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
-		startActivity(discoverableIntent);		
-	}
-	
-	private Dialog createBluetoothDeviceSelectDialog() {
-		Log.d(TAG, "Creating dialog...");
-		List<BluetoothDeviceListItem> pairedDeviceList = _bluetoothThread.getPairedDeviceList();
-		ListAdapter listAdapter = new ArrayAdapter<BluetoothDeviceListItem>(this, R.layout.simple_text_view, pairedDeviceList);
-		AlertDialog.Builder builder = new Builder(this);
-		
-		builder.setTitle("Select Device");
-		builder.setAdapter(listAdapter, new OnClickListener() {
-			
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				// TODO Auto-generated method stub
-				AlertDialog alertDialog = (AlertDialog)dialog;
-				BluetoothDeviceListItem item = (BluetoothDeviceListItem)alertDialog.getListView().getAdapter().getItem(which);
-				_bluetoothThread.connectToBluetoothDevice(item.device);
-				
-			}
-		});
-		
-		Log.d(TAG, "Device select dialog created");
-		
-		return builder.create();
-	}
-	
-	private BluetoothThread _bluetoothThread;
-	private Button _connectButton;
-	private MenuItem _connectMenuItem;
-	private boolean _connecting = false;
-
-	@Override
-	public void onConnectionFailed(String deviceAdress) {		
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		
-		builder.setTitle("Error");
-		builder.setMessage("Cannot connect to device " + deviceAdress);
-		builder.setPositiveButton("OK", new OnClickListener() {
-			
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				enableConnectOption();
-			}
-		});
-		
-		builder.create().show();
-	}
-	
-	private void enableConnectOption() {
-		_connecting = false;
-		Button connectButton = (Button)findViewById(R.id.connectButton);
-		connectButton.setText("Connect");
-		connectButton.setEnabled(true);
-	}
-	
-	private void disableConnectOption() {
-		_connecting = true;
-		Button connectButton = (Button)findViewById(R.id.connectButton);
-		connectButton.setText("Connecting...");
-		connectButton.setEnabled(false);
+	public void onAccepted() {
+		Intent intent = new Intent(this, AudioCaptureActivity.class);
+		intent.putExtra(AudioCaptureActivity.EXTRA_BLUETOOTH_THREAD, _bluetoothThread);
+		intent.putExtra(AudioCaptureActivity.EXTRA_SEND_SYNC_REQUEST, false);
+		startService(intent);
 	}
 }

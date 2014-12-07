@@ -17,21 +17,27 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.support.v4.util.ArrayMap;
 import android.util.Log;
 
-public class BluetoothThread extends Thread {
-
+public class BluetoothThread extends Thread implements Parcelable {
 	public static final String serviceName = "Bluetooth Stereo Recorder Service";
 	public static final UUID uuid = new UUID(0xA8618C6247AEC795L, 0x551A20A0492A5E31L); // MD5 of "org.wmatusze.BluetoothStereoRecorder
 	private static final String TAG = "BluetoothThread";
 
 	public interface BluetoothThreadListener {
-		void receiveBluetoothMessage(long msg);
+		void onBluetoothMessageReceived(long msg);
+	}
+	
+	public interface BluetoothThreadActivity {
+		void runOnUiThread (Runnable action);
 		void enableBluetooth(BluetoothAdapter adapter);
 		void enableDiscoverability();
+		void onConnected();
 		void onConnectionFailed(String deviceAdress);
-		void runOnUiThread (Runnable action);
+		void onAccepted();
 	}
 
 	public void run() {
@@ -41,10 +47,8 @@ public class BluetoothThread extends Thread {
 		Looper.loop();
 	}
 
-	public BluetoothThread(BluetoothThreadListener listener) {
-		_listener = listener;
+	public BluetoothThread() {
 		_bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-		_listener.enableBluetooth(_bluetoothAdapter);
 	}
 	
 	public boolean deviceIsBluetoothCapable() {
@@ -86,14 +90,20 @@ public class BluetoothThread extends Thread {
 	public void receive() {
 		_handler.sendMessage(Message.obtain(_handler, MESSAGE_RECEIVE));
 	}
+	 
+	public void startDeviceScan() {
+		Log.d(TAG, "Starting discovery");
+		_bluetoothAdapter.startDiscovery();
+	}
 
 	private void _listen() throws IOException {
-		_listener.enableDiscoverability();
+		_activity.enableDiscoverability();
 		_bluetoothAdapter.cancelDiscovery();
 		_bluetoothServerSocket = _bluetoothAdapter.listenUsingRfcommWithServiceRecord(serviceName, uuid);
 		_bluetoothSocket = _bluetoothServerSocket.accept();
 		_dataInputStream = new DataInputStream(_bluetoothSocket.getInputStream());
 		_dataOutputStream = new DataOutputStream(_bluetoothSocket.getOutputStream());
+		_activity.onAccepted();
 	}
 
 	private void _connect(final BluetoothDevice bluetoothDevice) throws IOException {
@@ -103,21 +113,33 @@ public class BluetoothThread extends Thread {
 		try {
 			_bluetoothSocket.connect();
 		} catch (IOException e) {
-			_listener.runOnUiThread(new Runnable() {
+			Log.e(TAG, "Cannot connect to " + bluetoothDevice.getAddress());
+			_activity.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-					_listener.onConnectionFailed(bluetoothDevice.getAddress());					
+					String deviceDescription = bluetoothDevice.getAddress();
+					if(bluetoothDevice.getName() != null) {
+						deviceDescription += " (" + bluetoothDevice.getName() + ")";
+					}
+					_activity.onConnectionFailed(deviceDescription);		
 				}
 			});
+		} finally {
+			Log.d(TAG, "Connected to " + bluetoothDevice.getAddress());
+			_activity.onConnected();
 		}
 	}
 
 	private void _send(int hi, int lo) throws IOException {
-		_dataOutputStream.writeLong(Long.rotateLeft(hi, 32) + lo);
+		long msg = Long.rotateLeft(hi, 32) + lo;
+		Log.d(TAG, "Sending " + msg);
+		_dataOutputStream.writeLong(msg);
 	}
 
 	private void _receive() throws IOException {
-		_listener.receiveBluetoothMessage(_dataInputStream.readLong());
+		long msg = _dataInputStream.readLong();
+		Log.d(TAG, "Received " + msg);
+		_listener.onBluetoothMessageReceived(msg);
 	}
 
 	private static class BluetoothThreadHandler extends Handler {
@@ -157,9 +179,31 @@ public class BluetoothThread extends Thread {
 	private DataInputStream _dataInputStream;
 	private DataOutputStream _dataOutputStream;
 	private Handler _handler;
+	private BluetoothThreadActivity _activity;
 	private BluetoothThreadListener _listener;
+	
+	public void setActivity(BluetoothThreadActivity _activity) {
+		this._activity = _activity;
+		_activity.enableBluetooth(_bluetoothAdapter);
+	}
+
+	public void setListener(BluetoothThreadListener _listener) {
+		this._listener = _listener;
+	}
 	private static final int MESSAGE_LISTEN = 0;
 	private static final int MESSAGE_CONNECT = 1;
 	private static final int MESSAGE_SEND = 2;
 	private static final int MESSAGE_RECEIVE = 3;
+
+	@Override
+	public int describeContents() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	public void writeToParcel(Parcel dest, int flags) {
+		// TODO Auto-generated method stub
+		
+	}
 }

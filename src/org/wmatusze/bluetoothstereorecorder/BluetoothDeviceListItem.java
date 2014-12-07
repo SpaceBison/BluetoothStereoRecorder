@@ -17,4 +17,9 @@ public class BluetoothDeviceListItem {
 			return device.getAddress();
 		}
 	}
+	
+	public boolean equals(Object other) {
+		BluetoothDeviceListItem otherBluetoothDeviceListItem = (BluetoothDeviceListItem)other;
+		return device.getAddress().equals(otherBluetoothDeviceListItem.device.getAddress());
+	}
 }

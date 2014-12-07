@@ -3,6 +3,10 @@ package org.wmatusze.bluetoothstereorecorder;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import android.bluetooth.BluetoothAdapter;
@@ -13,6 +17,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.support.v4.util.ArrayMap;
 import android.util.Log;
 
 public class BluetoothThread extends Thread {
@@ -25,6 +30,8 @@ public class BluetoothThread extends Thread {
 		void receiveBluetoothMessage(long msg);
 		void enableBluetooth(BluetoothAdapter adapter);
 		void enableDiscoverability();
+		void onConnectionFailed(String deviceAdress);
+		void runOnUiThread (Runnable action);
 	}
 
 	public void run() {
@@ -42,6 +49,22 @@ public class BluetoothThread extends Thread {
 	
 	public boolean deviceIsBluetoothCapable() {
 		return _bluetoothAdapter != null;
+	}
+	
+	public List<BluetoothDeviceListItem> getPairedDeviceList() {
+		Log.d(TAG, "Getting paired devices");
+		Set<BluetoothDevice> pairedDevices = _bluetoothAdapter.getBondedDevices();
+		List<BluetoothDeviceListItem> pairedDeviceList = new ArrayList<BluetoothDeviceListItem>();
+		
+		Log.d(TAG, "Got " + pairedDevices.size() + " paired devices");
+		
+		if(pairedDevices.size() > 0) {
+			for(BluetoothDevice device : pairedDevices) {
+				pairedDeviceList.add(new BluetoothDeviceListItem(device));
+			}
+		}
+		
+		return pairedDeviceList;
 	}
 
 	public Handler getHandler() {
@@ -73,10 +96,20 @@ public class BluetoothThread extends Thread {
 		_dataOutputStream = new DataOutputStream(_bluetoothSocket.getOutputStream());
 	}
 
-	private void _connect(BluetoothDevice bluetoothDevice) throws IOException {
+	private void _connect(final BluetoothDevice bluetoothDevice) throws IOException {
+		Log.d(TAG, "Connecting to device " + bluetoothDevice.getAddress());
 		_bluetoothSocket = bluetoothDevice.createRfcommSocketToServiceRecord(uuid);
 		_bluetoothAdapter.cancelDiscovery();
-		_bluetoothSocket.connect();
+		try {
+			_bluetoothSocket.connect();
+		} catch (IOException e) {
+			_listener.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					_listener.onConnectionFailed(bluetoothDevice.getAddress());					
+				}
+			});
+		}
 	}
 
 	private void _send(int hi, int lo) throws IOException {

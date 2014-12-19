@@ -9,7 +9,9 @@ public class BluetoothTimeSynchronizer implements BluetoothThreadListener {
 	private static final String TAG = "BluetoothTimeSynchronizer";
 	
 	public BluetoothTimeSynchronizer(BluetoothThread bluetoothThread) {
+		Log.d(TAG, "Creating synchronizer");
 		_bluetoothThread = bluetoothThread;
+		_bluetoothThread.setListener(this);
 	}
 	
 	@Override

@@ -15,7 +15,8 @@ public class AudioCaptureActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_audio_capture);
-		_bluetoothThread = getIntent().getParcelableExtra(EXTRA_BLUETOOTH_THREAD);
+		
+		_bluetoothThread = BluetoothThread.getInstance();
 		_timeSynchronizer = new BluetoothTimeSynchronizer(_bluetoothThread);
 		
 		if(getIntent().getBooleanExtra(EXTRA_SEND_SYNC_REQUEST, false)) {

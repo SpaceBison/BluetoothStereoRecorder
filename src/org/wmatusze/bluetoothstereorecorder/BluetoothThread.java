@@ -36,8 +36,20 @@ public class BluetoothThread extends Thread implements Parcelable {
 		void enableBluetooth(BluetoothAdapter adapter);
 		void enableDiscoverability();
 		void onConnected();
-		void onConnectionFailed(String deviceAdress);
+		void onConnectionFailed(String reason, String deviceAdress);
 		void onAccepted();
+	}
+	
+	private static class BluetoothThreadSingletonHolder {
+		private final static BluetoothThread instance = new BluetoothThread();
+	}
+	
+	private BluetoothThread() {
+		_bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+	}
+	
+	public static BluetoothThread getInstance() {
+		return BluetoothThreadSingletonHolder.instance;
 	}
 
 	public void run() {
@@ -45,10 +57,6 @@ public class BluetoothThread extends Thread implements Parcelable {
 		Looper.prepare();
 		_handler = new BluetoothThreadHandler(this);
 		Looper.loop();
-	}
-
-	public BluetoothThread() {
-		_bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 	}
 	
 	public boolean deviceIsBluetoothCapable() {
@@ -97,10 +105,12 @@ public class BluetoothThread extends Thread implements Parcelable {
 	}
 
 	private void _listen() throws IOException {
+		Log.d(TAG, "Listening");
 		_activity.enableDiscoverability();
 		_bluetoothAdapter.cancelDiscovery();
 		_bluetoothServerSocket = _bluetoothAdapter.listenUsingRfcommWithServiceRecord(serviceName, uuid);
 		_bluetoothSocket = _bluetoothServerSocket.accept();
+		Log.i(TAG, "Accepted " + _bluetoothSocket.toString());
 		_dataInputStream = new DataInputStream(_bluetoothSocket.getInputStream());
 		_dataOutputStream = new DataOutputStream(_bluetoothSocket.getOutputStream());
 		_activity.onAccepted();
@@ -113,17 +123,9 @@ public class BluetoothThread extends Thread implements Parcelable {
 		try {
 			_bluetoothSocket.connect();
 		} catch (IOException e) {
-			Log.e(TAG, "Cannot connect to " + bluetoothDevice.getAddress());
-			_activity.runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					String deviceDescription = bluetoothDevice.getAddress();
-					if(bluetoothDevice.getName() != null) {
-						deviceDescription += " (" + bluetoothDevice.getName() + ")";
-					}
-					_activity.onConnectionFailed(deviceDescription);		
-				}
-			});
+			String deviceDescription = bluetoothDevice.getAddress();
+			Log.e(TAG, "Cannot connect to " + deviceDescription);
+			_activity.onConnectionFailed(e.getMessage(), deviceDescription);
 		} finally {
 			Log.d(TAG, "Connected to " + bluetoothDevice.getAddress());
 			_activity.onConnected();

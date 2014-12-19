@@ -6,6 +6,7 @@ import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadActiv
 import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadListener;
 
 import android.support.v7.app.ActionBarActivity;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.AlertDialog.Builder;
@@ -177,32 +178,43 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 				// TODO stop discovery
 			}
 		});
+		
 		dialog.show();
 		_bluetoothThread.listen();
 	}
 	
 	@Override
-	public void onConnectionFailed(String deviceAdress) {		
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		
-		builder.setTitle("Error");
-		builder.setMessage("Cannot connect to device " + deviceAdress);
-		builder.setPositiveButton("OK", new OnClickListener() {
-			
+	public void onConnectionFailed(final String reason, final String deviceAdress) {
+		runOnUiThread(new Runnable() {
 			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				enableConnectOption();
+			public void run() {
+				AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+				String message = "Cannot connect to device " + deviceAdress;
+				
+				if(reason != null) {
+					message += " Reason: " + reason;
+				}
+				
+				builder.setTitle("Error");
+				builder.setMessage(message);
+				builder.setPositiveButton("OK", new OnClickListener() {
+					
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						enableConnectOption();
+					}
+				});
+				
+				builder.create().show();		
 			}
 		});
-		
-		builder.create().show();
 	}
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		
-		_bluetoothThread = new BluetoothThread();
+		_bluetoothThread = BluetoothThread.getInstance();
 
 		if(!_bluetoothThread.deviceIsBluetoothCapable()) {
 			Log.e(TAG, "Device is not bluetooth enabled");
@@ -247,17 +259,25 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 
 	@Override
 	public void onConnected() {
-		Intent intent = new Intent(this, AudioCaptureActivity.class);
-		intent.putExtra(AudioCaptureActivity.EXTRA_BLUETOOTH_THREAD, _bluetoothThread);
-		intent.putExtra(AudioCaptureActivity.EXTRA_SEND_SYNC_REQUEST, true);
-		startService(intent);
+		Log.d(TAG,"onConnected");
+		startAudioCaptureActivity(true);
 	}
 
 	@Override
 	public void onAccepted() {
-		Intent intent = new Intent(this, AudioCaptureActivity.class);
-		intent.putExtra(AudioCaptureActivity.EXTRA_BLUETOOTH_THREAD, _bluetoothThread);
-		intent.putExtra(AudioCaptureActivity.EXTRA_SEND_SYNC_REQUEST, false);
-		startService(intent);
+		Log.d(TAG,"onAccepted");
+		startAudioCaptureActivity(true);
+	}
+	
+	private void startAudioCaptureActivity(final boolean startTimeSync) {
+		runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				Log.i(TAG, "Launching AudioCaptureActivity");
+				Intent intent = new Intent(MainActivity.this, AudioCaptureActivity.class);
+				intent.putExtra(AudioCaptureActivity.EXTRA_SEND_SYNC_REQUEST, startTimeSync);
+				startActivity(intent);
+			}
+		});
 	}
 }

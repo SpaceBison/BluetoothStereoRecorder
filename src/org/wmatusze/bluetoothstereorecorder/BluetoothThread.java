@@ -111,8 +111,7 @@ public class BluetoothThread extends Thread implements Parcelable {
 		_bluetoothServerSocket = _bluetoothAdapter.listenUsingRfcommWithServiceRecord(serviceName, uuid);
 		_bluetoothSocket = _bluetoothServerSocket.accept();
 		Log.i(TAG, "Accepted " + _bluetoothSocket.toString());
-		_dataInputStream = new DataInputStream(_bluetoothSocket.getInputStream());
-		_dataOutputStream = new DataOutputStream(_bluetoothSocket.getOutputStream());
+		createDataStreams();
 		_activity.onAccepted();
 	}
 
@@ -128,8 +127,14 @@ public class BluetoothThread extends Thread implements Parcelable {
 			_activity.onConnectionFailed(e.getMessage(), deviceDescription);
 		} finally {
 			Log.d(TAG, "Connected to " + bluetoothDevice.getAddress());
+			createDataStreams();
 			_activity.onConnected();
 		}
+	}
+	
+	private void createDataStreams() throws IOException {
+		_dataInputStream = new DataInputStream(_bluetoothSocket.getInputStream());
+		_dataOutputStream = new DataOutputStream(_bluetoothSocket.getOutputStream());
 	}
 
 	private void _send(int hi, int lo) throws IOException {
@@ -150,7 +155,6 @@ public class BluetoothThread extends Thread implements Parcelable {
 		}
 
 		public void handleMessage(Message msg) {
-			Log.d(TAG, "Got message: " + msg.toString());
 			
 			try {
 				switch (msg.what) {

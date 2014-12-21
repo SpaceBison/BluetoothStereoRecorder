@@ -6,11 +6,21 @@
     tools:context="${relativePackage}.${activityClass}" >
 
     <Button
-        android:id="@+id/Record"
+        android:id="@+id/recordButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
-        android:text="recordButton" />
+        android:text="SZTOP"
+        android:onClick="onRecordClick" />
+
+    <TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:fontFamily="monospace"
+        android:text="TextView" />
 
 </RelativeLayout>

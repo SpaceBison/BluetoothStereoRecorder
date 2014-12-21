@@ -7,6 +7,7 @@ import android.util.Log;
 
 public class BluetoothTimeSynchronizer implements BluetoothThreadListener {
 	private static final String TAG = "BluetoothTimeSynchronizer";
+	private static final int STAT_SIZE = 512;
 	
 	public BluetoothTimeSynchronizer(BluetoothThread bluetoothThread) {
 		Log.d(TAG, "Creating synchronizer");
@@ -25,15 +26,17 @@ public class BluetoothTimeSynchronizer implements BluetoothThreadListener {
 		long delay = receiveTime - _lastTransmissionTime;
 		long offset = _lastReceiveTime - _lastOthersTransmissionTime +
 					  _lastTransmissionTime - othersTransmissionTime;
+
+		_delayStats.push(delay);
+		_offsetStats.push(offset);
 		
-		_delayAverage = (delay + _averageCount * _delayAverage) / (_averageCount + 1);
-		_offsetAverage = (offset + _averageCount * _offsetAverage) / (_averageCount + 1);
-		_averageCount++;
+		String delayStatsMsg = " Delay: " + delay + "\n   Avg: " + _delayStats.getAverage() + "\nStdDev: " + _delayStats.getStandardDeviation();
+		String offsetStatsMsg = "Offset: " + offset + "\n   Avg: " + _offsetStats.getAverage() + "\nStdDev: " + _offsetStats.getStandardDeviation();
 		
-		Log.i(TAG, "Delay  = " + delay + " (avg " + _delayAverage + ")");
-		Log.i(TAG, "Offset = " + offset + " (avg " + _offsetAverage + ")");
+		Log.i(TAG, delayStatsMsg);
+		Log.i(TAG, offsetStatsMsg);
 		
-		acActivity.setText( "Delay  = " + delay + "\n(avg " + _delayAverage + ")\nOffset = " + offset + "\n(avg " + _offsetAverage + ")");
+		acActivity.setText(delayStatsMsg + "\n" + offsetStatsMsg);
 		
 		_lastReceiveTime = receiveTime;
 		_lastOthersTransmissionTime = othersTransmissionTime;
@@ -49,13 +52,12 @@ public class BluetoothTimeSynchronizer implements BluetoothThreadListener {
 	}
 	
 	private BluetoothThread _bluetoothThread;
-	private double _delayAverage = 0;
-	private double _offsetAverage = 0;
-	private long _averageCount = 0;
 	private long _lastTransmissionTime = 0;
 	private long _lastReceiveTime = 0;
 	private long _lastOthersTransmissionTime = 0;
 	private boolean stopped = false;
+	private StatisticalRingQueue<Long> _delayStats = new StatisticalRingQueue<Long>(STAT_SIZE);
+	private StatisticalRingQueue<Long> _offsetStats = new StatisticalRingQueue<Long>(STAT_SIZE);
 	
 	public AudioCaptureActivity acActivity;
 

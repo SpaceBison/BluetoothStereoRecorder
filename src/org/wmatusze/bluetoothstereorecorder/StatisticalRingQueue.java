@@ -39,22 +39,21 @@ public class StatisticalRingQueue<E extends Number> {
 			E removed = _queue.remove();
 			double removedValue = removed.doubleValue();
 			
-			_variance -= _average * _average;
-			_variance -= removedValue * removedValue / _size;
+			_average -= (removedValue - _average) / _size;
+			_average += (eValue - _average) / _size;
 			
-			_average -= removedValue / _size;
-			_average += eValue / queueSize;
+			_powerSumAverage -= (removedValue * removedValue - _powerSumAverage) / _size;
+			_powerSumAverage += (eValue * eValue - _powerSumAverage) / queueSize;
 			
-			_variance += _average * _average;
-			_variance += eValue * eValue / _size;
+			_variance = (_powerSumAverage * _size - _size * _average * _average) / (_size - 1);
 			
 			_standardDeviation = Math.sqrt(_variance);
 			
 			return removed;
 		} else {
-			_variance -= _average * _average;
-			_average += eValue / queueSize;
-			_variance += _average * _average;
+			_average += (eValue - _average) / queueSize;
+			_powerSumAverage += (eValue * eValue - _powerSumAverage) / queueSize;
+			_variance = (_powerSumAverage * queueSize - queueSize * _average * _average) / (queueSize - 1);
 			_standardDeviation = Math.sqrt(_variance);
 			
 			return null;
@@ -66,4 +65,5 @@ public class StatisticalRingQueue<E extends Number> {
 	private double _average = 0;
 	private double _variance = 0;
 	private double _standardDeviation = 0;
+	private double _powerSumAverage = 0;
 }

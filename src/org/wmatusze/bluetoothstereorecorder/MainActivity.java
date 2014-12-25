@@ -62,6 +62,13 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 				unregisterReceiver(_broadcastReceiver);
 				disableConnectOption();
 				_bluetoothThread.connectToBluetoothDevice(item.device);
+				
+				ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
+				progressDialog.setMessage("Connecting");
+				progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+				progressDialog.setCancelable(false);
+				_activeDialog = progressDialog;
+				_activeDialog.show();
 			}
 		}
 		
@@ -117,6 +124,8 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 
 	private MenuItem _connectMenuItem;
 	
+	private Dialog _activeDialog;
+	
 	private void disableConnectOption() {
 		_connecting = true;
 		_connectButton.setText("Connecting...");
@@ -162,7 +171,8 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 		Log.d(TAG, "Connect option clicked");
 		
 		AlertDialog.Builder builder = new BluetoothDeviceSelectAlertDialogBuilder(this);
-		builder.create().show();
+		_activeDialog = builder.create();
+		_activeDialog.show();
 	}
 	
 	public void onListenClick(View view) {
@@ -205,7 +215,8 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 					}
 				});
 				
-				builder.create().show();		
+				_activeDialog = builder.create();
+				_activeDialog.show();
 			}
 		});
 	}
@@ -274,6 +285,11 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 			@Override
 			public void run() {
 				Log.i(TAG, "Launching AudioCaptureActivity");
+				
+				if(_activeDialog != null) {
+					_activeDialog.dismiss();
+				}
+				
 				Intent intent = new Intent(MainActivity.this, AudioCaptureActivity.class);
 				intent.putExtra(AudioCaptureActivity.EXTRA_SEND_SYNC_REQUEST, startTimeSync);
 				startActivity(intent);

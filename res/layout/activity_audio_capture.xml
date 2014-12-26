@@ -5,15 +5,6 @@
     android:background="@color/LightSlateGray"
     tools:context="${relativePackage}.${activityClass}" >
 
-    <Button
-        android:id="@+id/recordButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:text="SZTOP"
-        android:onClick="onRecordClick" />
-
     <TextView
         android:id="@+id/textView1"
         android:layout_width="wrap_content"
@@ -22,5 +13,21 @@
         android:layout_alignParentTop="true"
         android:fontFamily="monospace"
         android:text="TextView" />
+    
+    <Button
+        android:id="@+id/recordButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:onClick="onRecordClick"
+        android:text="@string/record" />
+    
+    <TextView
+        android:id="@+id/timestampTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true" />
 
 </RelativeLayout>

@@ -8,5 +8,7 @@
     <string name="connect">Connect</string>
     <string name="exit">Exit</string>
     <string name="listen">Listen</string>
+    <string name="record">Record</string>
+    <string name="recording">Recording...</string>
 
 </resources>

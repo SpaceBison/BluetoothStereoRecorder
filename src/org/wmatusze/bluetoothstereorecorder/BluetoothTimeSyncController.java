@@ -5,17 +5,17 @@ import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadListe
 import android.os.SystemClock;
 import android.util.Log;
 
-public class BluetoothTimeSynchronizer implements BluetoothThreadListener {
+public class BluetoothTimeSyncController implements BluetoothThreadListener {
 	private static final String TAG = "BluetoothTimeSynchronizer";
 	private static final int STAT_SIZE = 512;
 	private static long STOP_SYNC_VAL = -1;
 	
-	public interface BluetoothTimeSynchronizerListener {
+	public interface BluetoothTimeSyncControllerListener {
 		void onStartRecordRequest(long startTime);
 		void onStopRecordRequest();
 	}
 	
-	public BluetoothTimeSynchronizer(BluetoothThread bluetoothThread) {
+	public BluetoothTimeSyncController(BluetoothThread bluetoothThread) {
 		Log.d(TAG, "Creating synchronizer");
 		_bluetoothThread = bluetoothThread;
 		_bluetoothThread.setListener(this);
@@ -76,7 +76,7 @@ public class BluetoothTimeSynchronizer implements BluetoothThreadListener {
 	private StatisticalRingQueue<Long> _offsetStats = new StatisticalRingQueue<Long>(STAT_SIZE);
 	
 	public AudioCaptureActivity acActivity;
-	private BluetoothTimeSynchronizerListener _listener;
+	private BluetoothTimeSyncControllerListener _listener;
 
 	public boolean isStopped() {
 		return stopped;
@@ -89,11 +89,11 @@ public class BluetoothTimeSynchronizer implements BluetoothThreadListener {
 		}
 	}
 
-	public BluetoothTimeSynchronizerListener getListener() {
+	public BluetoothTimeSyncControllerListener getListener() {
 		return _listener;
 	}
 
-	public void setListener(BluetoothTimeSynchronizerListener _listener) {
+	public void setListener(BluetoothTimeSyncControllerListener _listener) {
 		this._listener = _listener;
 	}
 

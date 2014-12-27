@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.wmatusze.bluetoothstereorecorder.BluetoothTimeSynchronizer.BluetoothTimeSynchronizerListener;
+import org.wmatusze.bluetoothstereorecorder.BluetoothTimeSyncController.BluetoothTimeSyncControllerListener;
 
 import android.app.Activity;
 import android.media.MediaRecorder;
@@ -17,7 +17,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-public class AudioCaptureActivity extends Activity implements BluetoothTimeSynchronizerListener {
+public class AudioCaptureActivity extends Activity implements BluetoothTimeSyncControllerListener {
 	public static final String EXTRA_BLUETOOTH_THREAD =
 			"org.wmatusze.bluetoothstereorecorder.extra.BLUETOOTH_THREAD";
 	public static final String EXTRA_SEND_SYNC_REQUEST =
@@ -30,7 +30,7 @@ public class AudioCaptureActivity extends Activity implements BluetoothTimeSynch
 		setContentView(R.layout.activity_audio_capture);
 		
 		_bluetoothThread = BluetoothThread.getInstance();
-		_timeSynchronizer = new BluetoothTimeSynchronizer(_bluetoothThread);
+		_timeSynchronizer = new BluetoothTimeSyncController(_bluetoothThread);
 		
 		_timeSynchronizer.acActivity = this;
 		_timeSynchronizer.setListener(this);
@@ -96,7 +96,7 @@ public class AudioCaptureActivity extends Activity implements BluetoothTimeSynch
 	private Button recordButton;
 	
 	private BluetoothThread _bluetoothThread;
-	private BluetoothTimeSynchronizer _timeSynchronizer;
+	private BluetoothTimeSyncController _timeSynchronizer;
 	private boolean recording = false;
 	private boolean host;
 	

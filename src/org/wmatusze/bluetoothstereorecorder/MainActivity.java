@@ -59,6 +59,7 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 			public void onClick(DialogInterface dialog, int which) {
 				AlertDialog alertDialog = (AlertDialog)dialog;
 				BluetoothDeviceListItem item = (BluetoothDeviceListItem)alertDialog.getListView().getAdapter().getItem(which);
+				Log.d(TAG, "Clicked device" + item.toString());
 				unregisterReceiver(_broadcastReceiver);
 				disableConnectOption();
 				_bluetoothThread.connectToBluetoothDevice(item.device);
@@ -116,7 +117,7 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 	private static final String TAG = "MainActivity";
 	
 	
-	private BluetoothThread _bluetoothThread;
+	private BluetoothThread _bluetoothThread = BluetoothThread.getInstance();
 
 	private Button _connectButton;
 	
@@ -224,15 +225,12 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-		
-		_bluetoothThread = BluetoothThread.getInstance();
-
+	
 		if(!_bluetoothThread.deviceIsBluetoothCapable()) {
 			Log.e(TAG, "Device is not bluetooth enabled");
 		}
 		
-		_bluetoothThread.setActivity(this);		
-		_bluetoothThread.start();
+		_bluetoothThread.setActivity(this);
 		
 		_connectButton = (Button)findViewById(R.id.connectButton);
 	}
@@ -271,7 +269,7 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 	@Override
 	public void onConnected() {
 		Log.d(TAG,"onConnected");
-		startAudioCaptureActivity(true);
+		startAudioCaptureActivity(false);
 	}
 
 	@Override

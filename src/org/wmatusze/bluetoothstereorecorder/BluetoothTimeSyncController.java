@@ -1,5 +1,6 @@
 package org.wmatusze.bluetoothstereorecorder;
 
+import org.wmatusze.bluetoothstereorecorder.BluetoothRecordSyncController.BluetoothRecordSyncControllerListener;
 import org.wmatusze.bluetoothstereorecorder.BluetoothThread.BluetoothThreadListener;
 
 import android.os.SystemClock;
@@ -8,28 +9,25 @@ import android.util.Log;
 public class BluetoothTimeSyncController implements BluetoothThreadListener {
 	private static final String TAG = "BluetoothTimeSynchronizer";
 	private static final int STAT_SIZE = 512;
-	private static long STOP_SYNC_VAL = -1;
+	private static final long STOP_FLAG = -1;
+	private boolean running = true;
+	private BluetoothRecordSyncControllerListener _listener;
 	
 	public interface BluetoothTimeSyncControllerListener {
-		void onStartRecordRequest(long startTime);
-		void onStopRecordRequest();
-	}
-	
-	public BluetoothTimeSyncController(BluetoothThread bluetoothThread) {
-		Log.d(TAG, "Creating synchronizer");
-		_bluetoothThread = bluetoothThread;
-		_bluetoothThread.setListener(this);
+		void onStopTimeSyncRequested();
 	}
 	
 	@Override
 	public void onBluetoothMessageReceived(long othersTransmissionTime) {
 		long receiveTime = SystemClock.elapsedRealtime();
 		
-		if(othersTransmissionTime == STOP_SYNC_VAL) {
-			stopped = true;
-			return;
-		} else if(stopped) {
-			_listener.onStartRecordRequest(othersTransmissionTime);
+		Log.d(TAG, "Sync msg received");
+		
+		if(othersTransmissionTime == STOP_FLAG) {
+			running = false;
+		}
+		
+		if(!running) {
 			return;
 		}
 		
@@ -43,9 +41,6 @@ public class BluetoothTimeSyncController implements BluetoothThreadListener {
 		String delayStatsMsg = " Delay: " + delay + "\n   Avg: " + getDelayStats().getAverage() + "\nStdDev: " + getDelayStats().getStandardDeviation();
 		String offsetStatsMsg = "Offset: " + offset + "\n   Avg: " + getOffsetStats().getAverage() + "\nStdDev: " + getOffsetStats().getStandardDeviation();
 		
-		Log.i(TAG, delayStatsMsg);
-		Log.i(TAG, offsetStatsMsg);
-		
 		acActivity.setText(delayStatsMsg + "\n" + offsetStatsMsg);
 		
 		_lastReceiveTime = receiveTime;
@@ -57,45 +52,24 @@ public class BluetoothTimeSyncController implements BluetoothThreadListener {
 	public void sendTime() {
 		long now = SystemClock.elapsedRealtime();
 		_bluetoothThread.send(now);
+		Log.d(TAG, "Sync msg sent");
 		_lastTransmissionTime = now;
 		_bluetoothThread.receive();
+	}	
+	
+	public void stop() {
+		running = false;
+		_bluetoothThread.send(STOP_FLAG);
 	}
 	
-	private void sendStopSyncVal() {
-		_bluetoothThread.send(STOP_SYNC_VAL);
-	}
-	
-	
-	private BluetoothThread _bluetoothThread;
+	private BluetoothThread _bluetoothThread = BluetoothThread.getInstance();
 	private long _lastTransmissionTime = 0;
 	private long _lastReceiveTime = 0;
 	private long _lastOthersTransmissionTime = 0;
-	private boolean stopped = false;
-	private boolean recording = false;
 	private StatisticalRingQueue<Long> _delayStats = new StatisticalRingQueue<Long>(STAT_SIZE);
 	private StatisticalRingQueue<Long> _offsetStats = new StatisticalRingQueue<Long>(STAT_SIZE);
 	
 	public AudioCaptureActivity acActivity;
-	private BluetoothTimeSyncControllerListener _listener;
-
-	public boolean isStopped() {
-		return stopped;
-	}
-
-	public void setStopped(boolean stopped) {
-		this.stopped = stopped;
-		if(stopped) {
-			sendStopSyncVal();
-		}
-	}
-
-	public BluetoothTimeSyncControllerListener getListener() {
-		return _listener;
-	}
-
-	public void setListener(BluetoothTimeSyncControllerListener _listener) {
-		this._listener = _listener;
-	}
 
 	public StatisticalRingQueue<Long> getDelayStats() {
 		return _delayStats;
@@ -103,5 +77,21 @@ public class BluetoothTimeSyncController implements BluetoothThreadListener {
 
 	public StatisticalRingQueue<Long> getOffsetStats() {
 		return _offsetStats;
+	}
+
+	public boolean isRunning() {
+		return running;
+	}
+
+	public void setRunning(boolean running) {
+		this.running = running;
+	}
+
+	public BluetoothRecordSyncControllerListener getListener() {
+		return _listener;
+	}
+
+	public void setListener(BluetoothRecordSyncControllerListener _listener) {
+		this._listener = _listener;
 	}
 }

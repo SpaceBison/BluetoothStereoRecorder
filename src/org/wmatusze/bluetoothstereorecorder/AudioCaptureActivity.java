@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.wmatusze.bluetoothstereorecorder.BluetoothRecordSyncController.BluetoothRecordSyncControllerListener;
 import org.wmatusze.bluetoothstereorecorder.BluetoothTimeSyncController.BluetoothTimeSyncControllerListener;
 
 import android.app.Activity;
@@ -17,7 +18,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-public class AudioCaptureActivity extends Activity implements BluetoothTimeSyncControllerListener {
+public class AudioCaptureActivity extends Activity implements BluetoothRecordSyncControllerListener, BluetoothTimeSyncControllerListener {
 	public static final String EXTRA_BLUETOOTH_THREAD =
 			"org.wmatusze.bluetoothstereorecorder.extra.BLUETOOTH_THREAD";
 	public static final String EXTRA_SEND_SYNC_REQUEST =
@@ -29,11 +30,10 @@ public class AudioCaptureActivity extends Activity implements BluetoothTimeSyncC
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_audio_capture);
 		
-		_bluetoothThread = BluetoothThread.getInstance();
-		_timeSynchronizer = new BluetoothTimeSyncController(_bluetoothThread);
-		
-		_timeSynchronizer.acActivity = this;
-		_timeSynchronizer.setListener(this);
+		_timeSyncController.acActivity = this;
+		_timeSyncController.setListener(this);
+		_bluetoothThread.setListener(_timeSyncController);
+		_recordSyncController.setListener(this);
 		
 		host = getIntent().getBooleanExtra(EXTRA_SEND_SYNC_REQUEST, false);
 		
@@ -41,14 +41,7 @@ public class AudioCaptureActivity extends Activity implements BluetoothTimeSyncC
 		textView1 = (TextView)findViewById(R.id.textView1);
 		timeStampTextView = (TextView)findViewById(R.id.timestampTextView);
 		setTimeStamp(0);
-		
-		if(host) {
-			_timeSynchronizer.sendTime();
-		} else {
-			recordButton.setEnabled(false);
-		}
-		
-		_mediaRecorder = new MediaRecorder();
+			
 		_mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
 		_mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 		_mediaRecorder.setOutputFile(_outputFilePath);
@@ -62,17 +55,30 @@ public class AudioCaptureActivity extends Activity implements BluetoothTimeSyncC
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		if(host) {
+			_timeSyncController.sendTime();
+		} else {
+			recordButton.setEnabled(false);
+		}
 	}
 	
 	private void setTimeStamp(long millis) {
-		timeStampTextView.setText(String.valueOf(millis));
-		//timeStampTextView.setText(String.format("%d:%2d:%2d", millis/60000, millis/1000));
+		long minutes = millis / 60000;
+		millis -=  minutes * 60000;
+		long seconds = millis / 1000;
+		millis -= seconds * 1000;
+		timeStampTextView.setText(String.valueOf(minutes) + ":" + 
+								  String.valueOf(minutes) + ":" +
+								  String.valueOf(millis));
 	}
 	
 	public void onRecordClick(View view) {
 		if(isRecording()) {
+			recording = false;
 			onStopRecordingClick();						
 		} else {
+			recording = true;
 			onStartRecordingClick();
 		}
 	}
@@ -95,24 +101,20 @@ public class AudioCaptureActivity extends Activity implements BluetoothTimeSyncC
 	private TextView timeStampTextView;
 	private Button recordButton;
 	
-	private BluetoothThread _bluetoothThread;
-	private BluetoothTimeSyncController _timeSynchronizer;
+	private BluetoothThread _bluetoothThread = BluetoothThread.getInstance();;
+	private BluetoothTimeSyncController _timeSyncController = new BluetoothTimeSyncController();
+	private BluetoothRecordSyncController _recordSyncController = new BluetoothRecordSyncController();
 	private boolean recording = false;
 	private boolean host;
 	
-	private MediaRecorder _mediaRecorder;
+	private MediaRecorder _mediaRecorder = new MediaRecorder();;
 	private Timer _timer = new Timer();
 	
 	private String _outputFileName = "BSRecord_tmp.mp4";
 	private String _outputFilePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + _outputFileName;
 
-	@Override
-	public void onStartRecordRequest(long startTime) {
-		startRecording(startTime - SystemClock.elapsedRealtime());
-	}
-	
 	public void startRecording(long delay) {
-		Log.i(TAG, "Scheduling record " + delay + "ms from now.");
+		Log.i(TAG, "Scheduling record start " + delay + "ms from now.");
 		_timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
@@ -120,24 +122,58 @@ public class AudioCaptureActivity extends Activity implements BluetoothTimeSyncC
 			}
 		}, delay);
 	}
-
-	@Override
-	public void onStopRecordRequest() {
-		// TODO Auto-generated method stub
-		
+	
+	public void stopRecording(long delay) {
+		Log.i(TAG, "Scheduling record stop " + delay + "ms from now.");
+		_timer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				_mediaRecorder.stop();
+			}
+		}, delay);
 	}
 	
 	private void onStartRecordingClick() {
 		recordButton.setText(R.string.recording);
-		_timeSynchronizer.setStopped(true);
 		
-		long startDelay = (long)(_timeSynchronizer.getDelayStats().getAverage() + _timeSynchronizer.getDelayStats().getStandardDeviation());
-		long offset = (long)_timeSynchronizer.getOffsetStats().getAverage();
+		_timeSyncController.stop();
+		_bluetoothThread.setListener(_recordSyncController);
+				
+		long delay = getSafeDelay();
 		
-		startRecording(startDelay);
+		startRecording(delay);
+		_recordSyncController.sendStartRequest(delay + getOffset());
 	}
 	
 	private void onStopRecordingClick() {
 		recordButton.setText(R.string.record);
+		
+		long delay = getSafeDelay();
+		
+		startRecording(delay);
+		_recordSyncController.sendStartRequest(delay + getOffset());
+	}
+
+	@Override
+	public void onStartRecordRequested(long when) {
+		startRecording(when - SystemClock.elapsedRealtime());
+	}
+
+	@Override
+	public void onStopRecordRequested(long when) {
+		stopRecording(when - SystemClock.elapsedRealtime());
+	}
+
+	@Override
+	public void onStopTimeSyncRequested() {
+		_bluetoothThread.setListener(_recordSyncController);
+	}
+	
+	private long getSafeDelay() {
+		return (long)(_timeSyncController.getDelayStats().getAverage() + _timeSyncController.getDelayStats().getStandardDeviation());
+	}
+	
+	private long getOffset() {
+		return (long)_timeSyncController.getOffsetStats().getAverage();
 	}
 }

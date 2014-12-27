@@ -22,7 +22,7 @@ import android.os.Parcelable;
 import android.support.v4.util.ArrayMap;
 import android.util.Log;
 
-public class BluetoothThread extends Thread implements Parcelable {
+public class BluetoothThread extends Thread {
 	public static final String serviceName = "Bluetooth Stereo Recorder Service";
 	public static final UUID uuid = new UUID(0xA8618C6247AEC795L, 0x551A20A0492A5E31L); // MD5 of "org.wmatusze.BluetoothStereoRecorder
 	private static final String TAG = "BluetoothThread";
@@ -46,6 +46,7 @@ public class BluetoothThread extends Thread implements Parcelable {
 	
 	private BluetoothThread() {
 		_bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+		start();
 	}
 	
 	public static BluetoothThread getInstance() {
@@ -200,16 +201,4 @@ public class BluetoothThread extends Thread implements Parcelable {
 	private static final int MESSAGE_CONNECT = 1;
 	private static final int MESSAGE_SEND = 2;
 	private static final int MESSAGE_RECEIVE = 3;
-
-	@Override
-	public int describeContents() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public void writeToParcel(Parcel dest, int flags) {
-		// TODO Auto-generated method stub
-		
-	}
 }

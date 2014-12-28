@@ -67,7 +67,15 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 				ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
 				progressDialog.setMessage("Connecting");
 				progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-				progressDialog.setCancelable(false);
+				progressDialog.setCancelable(true);
+				progressDialog.setCanceledOnTouchOutside(false);
+				progressDialog.setOnCancelListener(new OnCancelListener() {
+					
+					@Override
+					public void onCancel(DialogInterface dialog) {
+						_bluetoothThread.cancelConnection();
+					}
+				});
 				_activeDialog = progressDialog;
 				_activeDialog.show();
 			}
@@ -183,19 +191,21 @@ public class MainActivity extends ActionBarActivity implements BluetoothThreadAc
 		dialog.setMessage("Waiting for connection");
         dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
 		dialog.setCancelable(true);
+		dialog.setCanceledOnTouchOutside(false);
 		dialog.setOnCancelListener(new OnCancelListener() {
 			@Override
 			public void onCancel(DialogInterface dialog) {
-				// TODO stop discovery
+				_bluetoothThread.cancelConnection();
 			}
 		});
 		
-		dialog.show();
+		_activeDialog = dialog;
+		_activeDialog.show();
 		_bluetoothThread.listen();
 	}
 	
 	@Override
-	public void onConnectionFailed(final String reason, final String deviceAdress) {
+	public void onConnectionError(final String reason, final String deviceAdress) {
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {

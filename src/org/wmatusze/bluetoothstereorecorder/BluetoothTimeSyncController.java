@@ -11,7 +11,7 @@ public class BluetoothTimeSyncController implements BluetoothThreadListener {
 	private static final int STAT_SIZE = 512;
 	private static final long STOP_FLAG = -1;
 	private boolean running = true;
-	private BluetoothRecordSyncControllerListener _listener;
+	private BluetoothTimeSyncControllerListener _listener;
 	
 	public interface BluetoothTimeSyncControllerListener {
 		void onStopTimeSyncRequested();
@@ -21,10 +21,11 @@ public class BluetoothTimeSyncController implements BluetoothThreadListener {
 	public void onBluetoothMessageReceived(long othersTransmissionTime) {
 		long receiveTime = SystemClock.elapsedRealtime();
 		
-		Log.d(TAG, "Sync msg received");
+		Log.d(TAG, "Sync msg received: " + othersTransmissionTime);
 		
 		if(othersTransmissionTime == STOP_FLAG) {
 			running = false;
+			_listener.onStopTimeSyncRequested();
 		}
 		
 		if(!running) {
@@ -55,11 +56,16 @@ public class BluetoothTimeSyncController implements BluetoothThreadListener {
 		Log.d(TAG, "Sync msg sent");
 		_lastTransmissionTime = now;
 		_bluetoothThread.receive();
-	}	
+	}
+	
+	public void waitForTime() {
+		_bluetoothThread.receive();
+	}
 	
 	public void stop() {
-		running = false;
+		Log.d(TAG, "Stopping");
 		_bluetoothThread.send(STOP_FLAG);
+		running = false;
 	}
 	
 	private BluetoothThread _bluetoothThread = BluetoothThread.getInstance();
@@ -87,11 +93,11 @@ public class BluetoothTimeSyncController implements BluetoothThreadListener {
 		this.running = running;
 	}
 
-	public BluetoothRecordSyncControllerListener getListener() {
+	public BluetoothTimeSyncControllerListener getListener() {
 		return _listener;
 	}
 
-	public void setListener(BluetoothRecordSyncControllerListener _listener) {
+	public void setListener(BluetoothTimeSyncControllerListener _listener) {
 		this._listener = _listener;
 	}
 }

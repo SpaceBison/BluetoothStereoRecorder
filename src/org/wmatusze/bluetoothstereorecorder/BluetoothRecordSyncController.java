@@ -27,6 +27,7 @@ public class BluetoothRecordSyncController implements BluetoothThreadListener {
 			recording = true;
 			_listener.onStartRecordRequested(msg);
 		}
+		waitForMessage();
 	}
 	
 	public void sendStartRequest(long time) {
@@ -56,5 +57,8 @@ public class BluetoothRecordSyncController implements BluetoothThreadListener {
 	public void setListener(BluetoothRecordSyncControllerListener _listener) {
 		this._listener = _listener;
 	}
-
+	
+	public void waitForMessage() {
+		_bluetoothThread.receive();
+	}
 }

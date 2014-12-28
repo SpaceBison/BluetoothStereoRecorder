@@ -43,6 +43,8 @@ public class AudioCaptureActivity extends Activity implements BluetoothRecordSyn
 		setTimeStamp(0);
 			
 		_mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+		_mediaRecorder.setAudioSamplingRate(44100);
+		_mediaRecorder.setAudioEncodingBitRate(32);
 		_mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
 		_mediaRecorder.setOutputFile(_outputFilePath);
 		_mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
@@ -59,6 +61,7 @@ public class AudioCaptureActivity extends Activity implements BluetoothRecordSyn
 		if(host) {
 			_timeSyncController.sendTime();
 		} else {
+			_timeSyncController.waitForTime();
 			recordButton.setEnabled(false);
 		}
 	}
@@ -74,6 +77,7 @@ public class AudioCaptureActivity extends Activity implements BluetoothRecordSyn
 	}
 	
 	public void onRecordClick(View view) {
+		Log.d(TAG, "Record button clicked");
 		if(isRecording()) {
 			recording = false;
 			onStopRecordingClick();						
@@ -118,6 +122,7 @@ public class AudioCaptureActivity extends Activity implements BluetoothRecordSyn
 		_timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
+				Log.d(TAG, "Starting to record!");
 				_mediaRecorder.start();
 			}
 		}, delay);
@@ -128,6 +133,7 @@ public class AudioCaptureActivity extends Activity implements BluetoothRecordSyn
 		_timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
+				Log.d(TAG, "Stopping record.");
 				_mediaRecorder.stop();
 			}
 		}, delay);
@@ -137,12 +143,13 @@ public class AudioCaptureActivity extends Activity implements BluetoothRecordSyn
 		recordButton.setText(R.string.recording);
 		
 		_timeSyncController.stop();
-		_bluetoothThread.setListener(_recordSyncController);
 				
 		long delay = getSafeDelay();
 		
+		_bluetoothThread.setListener(_recordSyncController);
+		
 		startRecording(delay);
-		_recordSyncController.sendStartRequest(delay + getOffset());
+		_recordSyncController.sendStartRequest(delay - getDelay()/2);
 	}
 	
 	private void onStopRecordingClick() {
@@ -150,27 +157,47 @@ public class AudioCaptureActivity extends Activity implements BluetoothRecordSyn
 		
 		long delay = getSafeDelay();
 		
-		startRecording(delay);
-		_recordSyncController.sendStartRequest(delay + getOffset());
+		stopRecording(delay);
+		_recordSyncController.sendStartRequest(delay - getDelay()/2);
 	}
 
 	@Override
-	public void onStartRecordRequested(long when) {
-		startRecording(when - SystemClock.elapsedRealtime());
+	public void onStartRecordRequested(final long when) {
+		runOnUiThread(new Runnable() {
+			
+			@Override
+			public void run() {
+				recordButton.setText(R.string.recording);
+				startRecording(when);				
+			}
+		});
 	}
 
 	@Override
-	public void onStopRecordRequested(long when) {
-		stopRecording(when - SystemClock.elapsedRealtime());
+	public void onStopRecordRequested(final long when) {
+		runOnUiThread(new Runnable() {
+			
+			@Override
+			public void run() {
+				recordButton.setText(R.string.record);
+				stopRecording(when);				
+			}
+		});
 	}
 
 	@Override
 	public void onStopTimeSyncRequested() {
+		Log.d(TAG, "OnStopTimeSyncRequested()");
 		_bluetoothThread.setListener(_recordSyncController);
+		_recordSyncController.waitForMessage();
 	}
 	
 	private long getSafeDelay() {
 		return (long)(_timeSyncController.getDelayStats().getAverage() + _timeSyncController.getDelayStats().getStandardDeviation());
+	}
+	
+	private long getDelay() {
+		return (long)(_timeSyncController.getDelayStats().getAverage());
 	}
 	
 	private long getOffset() {

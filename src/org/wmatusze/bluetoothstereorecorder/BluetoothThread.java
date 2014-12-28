@@ -36,7 +36,7 @@ public class BluetoothThread extends Thread {
 		void enableBluetooth(BluetoothAdapter adapter);
 		void enableDiscoverability();
 		void onConnected();
-		void onConnectionFailed(String reason, String deviceAdress);
+		void onConnectionError(String reason, String deviceAdress);
 		void onAccepted();
 	}
 	
@@ -93,7 +93,7 @@ public class BluetoothThread extends Thread {
 	}
 	
 	public void send(long data) {
-		_handler.sendMessage(Message.obtain(_handler, MESSAGE_SEND,(int)Long.rotateRight(data, 32),(int)data));
+		_handler.sendMessage(Message.obtain(_handler, MESSAGE_SEND,Long.valueOf(data)));
 	}
 	
 	public void receive() {
@@ -120,17 +120,10 @@ public class BluetoothThread extends Thread {
 		Log.d(TAG, "Connecting to device " + bluetoothDevice.getAddress());
 		_bluetoothSocket = bluetoothDevice.createRfcommSocketToServiceRecord(uuid);
 		_bluetoothAdapter.cancelDiscovery();
-		try {
-			_bluetoothSocket.connect();
-		} catch (IOException e) {
-			String deviceDescription = bluetoothDevice.getAddress();
-			Log.e(TAG, "Cannot connect to " + deviceDescription);
-			_activity.onConnectionFailed(e.getMessage(), deviceDescription);
-		} finally {
-			Log.d(TAG, "Connected to " + bluetoothDevice.getAddress());
-			createDataStreams();
-			_activity.onConnected();
-		}
+		_bluetoothSocket.connect();
+		Log.d(TAG, "Connected to " + bluetoothDevice.getAddress());
+		createDataStreams();
+		_activity.onConnected();
 	}
 	
 	private void createDataStreams() throws IOException {
@@ -138,8 +131,7 @@ public class BluetoothThread extends Thread {
 		_dataOutputStream = new DataOutputStream(_bluetoothSocket.getOutputStream());
 	}
 
-	private void _send(int hi, int lo) throws IOException {
-		long msg = Long.rotateLeft(hi, 32) + lo;
+	private void _send(long msg) throws IOException {
 		Log.d(TAG, "Sending " + msg);
 		_dataOutputStream.writeLong(msg);
 	}
@@ -166,13 +158,17 @@ public class BluetoothThread extends Thread {
 					_bluetoothThread._connect((BluetoothDevice)msg.obj);
 					break;
 				case MESSAGE_SEND:
-					_bluetoothThread._send(msg.arg1, msg.arg2);
+					_bluetoothThread._send(((Long)msg.obj).longValue());
 					break;
 				case MESSAGE_RECEIVE:
 					_bluetoothThread._receive();
+					break;
+				case MESSAGE_SET_LISTENER:
+					_bluetoothThread._listener = (BluetoothThreadListener)msg.obj;
 				}
 			} catch (IOException e) {
-				// TODO skibi dibi eksepszyn
+				Log.e(TAG, "Connection Error");
+				_bluetoothThread._activity.onConnectionError(e.getMessage(), "");
 				e.printStackTrace();
 			}
 		}
@@ -195,10 +191,30 @@ public class BluetoothThread extends Thread {
 	}
 
 	public void setListener(BluetoothThreadListener _listener) {
-		this._listener = _listener;
+		//Log.d(TAG, "Setting listener to " + _listener.toString());
+		//this._listener = _listener;
+		_handler.sendMessage(Message.obtain(_handler, MESSAGE_SET_LISTENER, _listener));
 	}
+	
+	public void cancelConnection() {
+		_handler.removeCallbacksAndMessages(null);
+		
+		try {
+			if(_bluetoothSocket != null) {
+				_bluetoothSocket.close();
+			}
+			
+			if(_bluetoothServerSocket != null) {
+				_bluetoothServerSocket.close();
+			}
+		} catch(IOException e) {
+			_activity.onConnectionError(e.getMessage(), "");
+		}
+	}
+	
 	private static final int MESSAGE_LISTEN = 0;
 	private static final int MESSAGE_CONNECT = 1;
 	private static final int MESSAGE_SEND = 2;
 	private static final int MESSAGE_RECEIVE = 3;
+	private static final int MESSAGE_SET_LISTENER = 4;
 }
